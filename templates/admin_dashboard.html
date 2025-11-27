@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Admin Dashboard</h2>
+<p>Total Doctors: {{ total_doctors }}</p>
+<p>Total Patients: {{ total_patients }}</p>
+<p>Total Appointments: {{ total_appointments }}</p>
+
+<h3>Recent Appointments</h3>
+<ul>
+{% for appt in recent_appointments %}
+    <li>
+        ID {{ appt.id }} -
+        Patient {{ appt.patient.name }} -
+        Doctor {{ appt.doctor.name }} -
+        {{ appt.date_time }} -
+        {{ appt.status }}
+    </li>
+{% endfor %}
+</ul>
+{% endblock %}

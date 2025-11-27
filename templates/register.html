@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Patient Registration</h2>
+<form method="post">
+    <label>Name:</label><br>
+    <input type="text" name="name" required><br><br>
+
+    <label>Email:</label><br>
+    <input type="email" name="email" required><br><br>
+
+    <label>Password:</label><br>
+    <input type="password" name="password" required><br><br>
+
+    <label>Age:</label><br>
+    <input type="number" name="age"><br><br>
+
+    <label>Gender:</label><br>
+    <input type="text" name="gender"><br><br>
+
+    <label>Phone:</label><br>
+    <input type="text" name="phone"><br><br>
+
+    <label>Address:</label><br>
+    <input type="text" name="address"><br><br>
+
+    <button type="submit">Register</button>
+</form>
+{% endblock %}
