@@ -2,6 +2,17 @@
 {% block content %}
 <h2>Manage Doctors</h2>
 
+<form method="get">
+    <label>Search (name / email / specialization):</label>
+    <input type="text" name="q" value="{{ q }}" placeholder="Type to search...">
+    <button type="submit">Search</button>
+    {% if q %}
+        <a href="{{ url_for('admin_doctors') }}">Clear</a>
+    {% endif %}
+</form>
+
+<br>
+
 <p><a href="{{ url_for('admin_create_doctor') }}">Add New Doctor</a></p>
 
 <table border="1" cellpadding="5" cellspacing="0">

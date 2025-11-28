@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Doctor Dashboard</h2>
+<p><a href="{{ url_for('doctor_appointments') }}">View All Appointments</a></p>
+
 <h3>Upcoming Appointments</h3>
 <ul>
 {% for appt in upcoming_appointments %}

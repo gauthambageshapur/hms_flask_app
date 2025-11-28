@@ -1,9 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Admin Dashboard</h2>
+
 <p>Total Doctors: {{ total_doctors }}</p>
 <p>Total Patients: {{ total_patients }}</p>
 <p>Total Appointments: {{ total_appointments }}</p>
+
+<p>
+    <a href="{{ url_for('admin_doctors') }}">Manage Doctors</a> |
+    <a href="{{ url_for('admin_patients') }}">Manage Patients</a>
+</p>
+
+<h3>Appointments by Status</h3>
+<canvas id="statusChart" width="400" height="200"></canvas>
 
 <h3>Recent Appointments</h3>
 <ul>
@@ -15,6 +24,37 @@
         {{ appt.date_time }} -
         {{ appt.status }}
     </li>
+{% else %}
+    <li>No appointments yet.</li>
 {% endfor %}
 </ul>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const statusLabels = {{ status_labels | tojson }};
+    const statusCounts = {{ status_counts | tojson }};
+
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    const statusChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: statusLabels,
+            datasets: [{
+                label: 'Appointments',
+                data: statusCounts,
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    precision: 0
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}
+

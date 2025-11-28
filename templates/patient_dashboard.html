@@ -2,6 +2,8 @@
 {% block content %}
 <h2>Patient Dashboard</h2>
 
+<p><a href="{{ url_for('patient_create_appointment') }}">Book New Appointment</a></p>
+
 <h3>Upcoming Appointments</h3>
 <ul>
 {% for appt in upcoming_appointments %}
@@ -9,6 +11,11 @@
         {{ appt.date_time }} -
         Doctor: {{ appt.doctor.name }} -
         Status: {{ appt.status }}
+        {% if appt.status == 'Booked' %}
+            | <a href="{{ url_for('patient_cancel_appointment', appointment_id=appt.id) }}">
+                Cancel
+              </a>
+        {% endif %}
     </li>
 {% else %}
     <li>No upcoming appointments.</li>

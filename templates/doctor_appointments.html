@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>All Appointments</h2>
+
+<table border="1" cellpadding="5" cellspacing="0">
+    <tr>
+        <th>ID</th>
+        <th>Date & Time</th>
+        <th>Patient</th>
+        <th>Status</th>
+        <th>Actions</th>
+    </tr>
+    {% for appt in appointments %}
+    <tr>
+        <td>{{ appt.id }}</td>
+        <td>{{ appt.date_time }}</td>
+        <td>{{ appt.patient.name }}</td>
+        <td>{{ appt.status }}</td>
+        <td>
+            {% if appt.status != 'Completed' %}
+                <a href="{{ url_for('doctor_complete_appointment', appointment_id=appt.id) }}">
+                    Complete & Add Treatment
+                </a>
+            {% else %}
+                <em>Completed</em>
+            {% endif %}
+        </td>
+    </tr>
+    {% else %}
+    <tr>
+        <td colspan="5">No appointments found.</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

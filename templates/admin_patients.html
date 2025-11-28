@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Manage Patients</h2>
+
+<form method="get">
+    <label>Search (name / email / phone):</label>
+    <input type="text" name="q" value="{{ q }}" placeholder="Type to search...">
+    <button type="submit">Search</button>
+    {% if q %}
+        <a href="{{ url_for('admin_patients') }}">Clear</a>
+    {% endif %}
+</form>
+
+<br>
+
+<table border="1" cellpadding="5" cellspacing="0">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Age</th>
+        <th>Gender</th>
+        <th>Phone</th>
+        <th>Active</th>
+        <th>Actions</th>
+    </tr>
+    {% for p in patients %}
+    <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.email }}</td>
+        <td>{{ p.age or '-' }}</td>
+        <td>{{ p.gender or '-' }}</td>
+        <td>{{ p.phone or '-' }}</td>
+        <td>{{ 'Yes' if p.is_active_flag else 'No' }}</td>
+        <td>
+            <a href="{{ url_for('admin_toggle_patient_active', patient_id=p.id) }}">
+                {{ 'Deactivate' if p.is_active_flag else 'Activate' }}
+            </a>
+        </td>
+    </tr>
+    {% else %}
+    <tr>
+        <td colspan="8">No patients found.</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

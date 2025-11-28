@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Complete Appointment #{{ appointment.id }}</h2>
+
+<p>
+    <strong>Date & Time:</strong> {{ appointment.date_time }}<br>
+    <strong>Patient:</strong> {{ appointment.patient.name }}
+</p>
+
+<form method="post">
+    <label>Diagnosis:</label><br>
+    <textarea name="diagnosis" rows="3" cols="50">{{ treatment.diagnosis if treatment else '' }}</textarea><br><br>
+
+    <label>Prescription:</label><br>
+    <textarea name="prescription" rows="3" cols="50">{{ treatment.prescription if treatment else '' }}</textarea><br><br>
+
+    <label>Notes:</label><br>
+    <textarea name="notes" rows="3" cols="50">{{ treatment.notes if treatment else '' }}</textarea><br><br>
+
+    <button type="submit">Save & Mark Completed</button>
+</form>
+{% endblock %}

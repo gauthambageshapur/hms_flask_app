@@ -1,5 +1,9 @@
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import or_
+from collections import Counter
+
+
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -221,6 +225,8 @@ def register():
 # Dashboards
 # -----------------
 
+
+
 @app.route("/admin/dashboard")
 @login_required
 def admin_dashboard():
@@ -236,13 +242,214 @@ def admin_dashboard():
         Appointment.query.order_by(Appointment.date_time.desc()).limit(10).all()
     )
 
+    # Chart data: appointments by status
+    all_appointments = Appointment.query.all()
+    status_counter = Counter([a.status for a in all_appointments])
+    status_labels = list(status_counter.keys())
+    status_counts = [status_counter[s] for s in status_labels]
+
     return render_template(
         "admin_dashboard.html",
         total_doctors=total_doctors,
         total_patients=total_patients,
         total_appointments=total_appointments,
         recent_appointments=recent_appointments,
+        status_labels=status_labels,
+        status_counts=status_counts,
     )
+
+
+# -----------------
+# Admin: Manage Doctors
+# -----------------
+
+@app.route("/admin/doctors")
+@login_required
+def admin_doctors():
+    if current_user.role != "admin":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    q = request.args.get("q", "").strip()
+
+    query = User.query.filter_by(role="doctor")
+
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(
+                User.name.ilike(like),
+                User.email.ilike(like),
+                User.specialization.ilike(like),
+            )
+        )
+
+    doctors = query.order_by(User.id.asc()).all()
+    return render_template("admin_doctors.html", doctors=doctors, q=q)
+
+
+
+@app.route("/admin/doctors/new", methods=["GET", "POST"])
+@login_required
+def admin_create_doctor():
+    if current_user.role != "admin":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
+        specialization = request.form.get("specialization", "").strip()
+
+        if not name or not email or not password:
+            flash("Name, email and password are required.", "danger")
+            return render_template("admin_doctor_form.html")
+
+        # check duplicate email
+        if User.query.filter_by(email=email).first():
+            flash("Email already exists.", "danger")
+            return render_template("admin_doctor_form.html")
+
+        doctor = User(
+            name=name,
+            email=email,
+            role="doctor",
+            specialization=specialization,
+        )
+        doctor.set_password(password)
+        db.session.add(doctor)
+        db.session.commit()
+        flash("Doctor created successfully.", "success")
+        return redirect(url_for("admin_doctors"))
+
+    return render_template("admin_doctor_form.html")
+
+# -----------------
+# Doctor: Manage Appointments & Treatment
+# -----------------
+
+@app.route("/doctor/appointments")
+@login_required
+def doctor_appointments():
+    if current_user.role != "doctor":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    appointments = (
+        Appointment.query
+        .filter_by(doctor_id=current_user.id)
+        .order_by(Appointment.date_time.desc())
+        .all()
+    )
+    return render_template("doctor_appointments.html", appointments=appointments)
+
+
+@app.route("/doctor/appointments/<int:appointment_id>/complete", methods=["GET", "POST"])
+@login_required
+def doctor_complete_appointment(appointment_id):
+    if current_user.role != "doctor":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    appt = (
+        Appointment.query
+        .filter_by(id=appointment_id, doctor_id=current_user.id)
+        .first_or_404()
+    )
+
+    if request.method == "POST":
+        diagnosis = request.form.get("diagnosis", "").strip()
+        prescription = request.form.get("prescription", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        # Mark appointment as completed
+        appt.status = "Completed"
+
+        # Either update existing treatment or create a new one
+        if appt.treatment:
+            appt.treatment.diagnosis = diagnosis
+            appt.treatment.prescription = prescription
+            appt.treatment.notes = notes
+        else:
+            t = Treatment(
+                appointment=appt,
+                diagnosis=diagnosis,
+                prescription=prescription,
+                notes=notes,
+            )
+            db.session.add(t)
+
+        db.session.commit()
+        flash("Appointment marked as completed with treatment details.", "success")
+        return redirect(url_for("doctor_appointments"))
+
+    # GET: show existing treatment if present
+    treatment = appt.treatment
+    return render_template(
+        "doctor_complete_appointment.html",
+        appointment=appt,
+        treatment=treatment,
+    )
+
+
+# -----------------
+# Admin: Manage Patients
+# -----------------
+
+@app.route("/admin/patients")
+@login_required
+def admin_patients():
+    if current_user.role != "admin":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    q = request.args.get("q", "").strip()
+
+    query = User.query.filter_by(role="patient")
+
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(
+                User.name.ilike(like),
+                User.email.ilike(like),
+                User.phone.ilike(like),
+            )
+        )
+
+    patients = query.order_by(User.id.asc()).all()
+    return render_template("admin_patients.html", patients=patients, q=q)
+
+
+
+@app.route("/admin/patients/<int:patient_id>/toggle_active")
+@login_required
+def admin_toggle_patient_active(patient_id):
+    if current_user.role != "admin":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    patient = User.query.filter_by(id=patient_id, role="patient").first_or_404()
+    patient.is_active_flag = not patient.is_active_flag
+    db.session.commit()
+    flash("Patient status updated.", "success")
+    return redirect(url_for("admin_patients"))
+
+
+
+@app.route("/admin/doctors/<int:doctor_id>/toggle_active")
+@login_required
+def admin_toggle_doctor_active(doctor_id):
+    if current_user.role != "admin":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    doctor = User.query.filter_by(id=doctor_id, role="doctor").first_or_404()
+    doctor.is_active_flag = not doctor.is_active_flag
+    db.session.commit()
+    flash("Doctor status updated.", "success")
+    return redirect(url_for("admin_doctors"))
 
 
 @app.route("/doctor/dashboard")
@@ -300,6 +507,97 @@ def patient_dashboard():
         upcoming_appointments=upcoming_appointments,
         past_appointments=past_appointments,
     )
+
+# -----------------
+# Patient: Book Appointments
+# -----------------
+
+@app.route("/patient/appointments/new", methods=["GET", "POST"])
+@login_required
+def patient_create_appointment():
+    if current_user.role != "patient":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    # Only show active doctors
+    doctors = User.query.filter_by(role="doctor", is_active_flag=True).all()
+
+    if request.method == "POST":
+        doctor_id = request.form.get("doctor_id")
+        date_str = request.form.get("date")   # yyyy-mm-dd
+        time_str = request.form.get("time")   # HH:MM
+
+        if not doctor_id or not date_str or not time_str:
+            flash("Please select doctor, date and time.", "danger")
+            return render_template("patient_appointment_form.html", doctors=doctors)
+
+        # Parse to datetime
+        try:
+            dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            flash("Invalid date or time format.", "danger")
+            return render_template("patient_appointment_form.html", doctors=doctors)
+
+        # Check conflict: same doctor, same date_time, not cancelled
+        existing = (
+            Appointment.query
+            .filter_by(doctor_id=int(doctor_id), date_time=dt)
+            .filter(Appointment.status != "Cancelled")
+            .first()
+        )
+
+        if existing:
+            flash("This time slot is already booked for that doctor.", "danger")
+            return render_template("patient_appointment_form.html", doctors=doctors)
+
+        # Create appointment
+        appt = Appointment(
+            patient_id=current_user.id,
+            doctor_id=int(doctor_id),
+            date_time=dt,
+            status="Booked",
+        )
+        db.session.add(appt)
+        db.session.commit()
+        flash("Appointment booked successfully.", "success")
+        return redirect(url_for("patient_dashboard"))
+
+    # GET request → show blank form
+    return render_template("patient_appointment_form.html", doctors=doctors)
+
+# -----------------
+# Patient: Cancel Appointment
+# -----------------
+
+@app.route("/patient/appointments/<int:appointment_id>/cancel")
+@login_required
+def patient_cancel_appointment(appointment_id):
+    if current_user.role != "patient":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    appt = (
+        Appointment.query
+        .filter_by(id=appointment_id, patient_id=current_user.id)
+        .first_or_404()
+    )
+
+    # Only allow cancelling if it's still booked and in the future (optional)
+    if appt.status != "Booked":
+        flash("Only booked appointments can be cancelled.", "warning")
+        return redirect(url_for("patient_dashboard"))
+
+    # Optional: block cancelling past appointments
+    if appt.date_time < datetime.now():
+        flash("Cannot cancel past appointments.", "warning")
+        return redirect(url_for("patient_dashboard"))
+
+    appt.status = "Cancelled"
+    db.session.commit()
+    flash("Appointment cancelled successfully.", "success")
+    return redirect(url_for("patient_dashboard"))
+
+
 
 
 # -------------
