@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Manage Doctors</h2>
+
+<p><a href="{{ url_for('admin_create_doctor') }}">Add New Doctor</a></p>
+
+<table border="1" cellpadding="5" cellspacing="0">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Specialization</th>
+        <th>Active</th>
+        <th>Actions</th>
+    </tr>
+    {% for d in doctors %}
+    <tr>
+        <td>{{ d.id }}</td>
+        <td>{{ d.name }}</td>
+        <td>{{ d.email }}</td>
+        <td>{{ d.specialization or '-' }}</td>
+        <td>{{ 'Yes' if d.is_active_flag else 'No' }}</td>
+        <td>
+            <a href="{{ url_for('admin_toggle_doctor_active', doctor_id=d.id) }}">
+                {{ 'Deactivate' if d.is_active_flag else 'Activate' }}
+            </a>
+        </td>
+    </tr>
+    {% else %}
+    <tr>
+        <td colspan="6">No doctors found.</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}
