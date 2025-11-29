@@ -1,62 +1,104 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Admin Dashboard</h2>
 
-<p>Total Doctors: {{ total_doctors }}</p>
-<p>Total Patients: {{ total_patients }}</p>
-<p>Total Appointments: {{ total_appointments }}</p>
+<h2 class="mb-4">Admin Dashboard</h2>
 
-<p>
-    <a href="{{ url_for('admin_doctors') }}">Manage Doctors</a> |
-    <a href="{{ url_for('admin_patients') }}">Manage Patients</a> |
-    <a href="{{ url_for('admin_appointments') }}">View All Appointments</a>
-</p>
+<div class="row">
 
+    <!-- Stats -->
+    <div class="col-md-4 mb-3">
+        <div class="card shadow card-custom">
+            <div class="card-body">
+                <h5 class="card-title">Doctors</h5>
+                <h2>{{ total_doctors }}</h2>
+            </div>
+        </div>
+    </div>
 
-<h3>Appointments by Status</h3>
-<canvas id="statusChart" width="400" height="200"></canvas>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow card-custom">
+            <div class="card-body">
+                <h5 class="card-title">Patients</h5>
+                <h2>{{ total_patients }}</h2>
+            </div>
+        </div>
+    </div>
 
-<h3>Recent Appointments</h3>
-<ul>
-{% for appt in recent_appointments %}
-    <li>
-        ID {{ appt.id }} -
-        Patient {{ appt.patient.name }} -
-        Doctor {{ appt.doctor.name }} -
-        {{ appt.date_time }} -
-        {{ appt.status }}
-    </li>
-{% else %}
-    <li>No appointments yet.</li>
-{% endfor %}
-</ul>
+    <div class="col-md-4 mb-3">
+        <div class="card shadow card-custom">
+            <div class="card-body">
+                <h5 class="card-title">Appointments</h5>
+                <h2>{{ total_appointments }}</h2>
+            </div>
+        </div>
+    </div>
 
-<!-- Chart.js CDN -->
+</div>
+
+<!-- Links -->
+<div class="mb-4">
+    <a href="{{ url_for('admin_doctors') }}" class="btn btn-primary me-2">Manage Doctors</a>
+    <a href="{{ url_for('admin_patients') }}" class="btn btn-primary me-2">Manage Patients</a>
+    <a href="{{ url_for('admin_appointments') }}" class="btn btn-primary">View All Appointments</a>
+</div>
+
+<!-- Chart -->
+<h4>Appointments by Status</h4>
+<div class="card shadow card-custom p-3 mb-4">
+    <canvas id="statusChart"></canvas>
+</div>
+
+<!-- Recent Appointments -->
+<div class="card shadow card-custom p-3">
+    <h4>Recent Appointments</h4>
+    <table class="table table-striped mt-3">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Date</th>
+                <th>Patient</th>
+                <th>Doctor</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for appt in recent_appointments %}
+            <tr>
+                <td>{{ appt.id }}</td>
+                <td>{{ appt.date_time }}</td>
+                <td>{{ appt.patient.name }}</td>
+                <td>{{ appt.doctor.name }}</td>
+                <td>{{ appt.status }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">No recent appointments.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Chart Script -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const statusLabels = {{ status_labels | tojson }};
     const statusCounts = {{ status_counts | tojson }};
 
-    const ctx = document.getElementById('statusChart').getContext('2d');
-    const statusChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: statusLabels,
-            datasets: [{
-                label: 'Appointments',
-                data: statusCounts,
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    precision: 0
-                }
+    new Chart(
+        document.getElementById('statusChart'),
+        {
+            type: 'bar',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    label: 'Appointments',
+                    data: statusCounts,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgb(54, 162, 235)',
+                    borderWidth: 1
+                }]
             }
         }
-    });
+    );
 </script>
-{% endblock %}
 
+{% endblock %}

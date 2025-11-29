@@ -1,46 +1,83 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Patient Dashboard</h2>
 
-<p>
-    <a href="{{ url_for('patient_profile') }}">Edit Profile</a> |
-    <a href="{{ url_for('patient_create_appointment') }}">Book New Appointment</a> |
-    <a href="{{ url_for('patient_doctors') }}">Browse Doctors & Availability</a>
-</p>
+<h2 class="mb-4">Patient Dashboard</h2>
 
+<!-- Actions -->
+<div class="mb-3">
+    <a href="{{ url_for('patient_profile') }}" class="btn btn-secondary me-2">Edit Profile</a>
+    <a href="{{ url_for('patient_create_appointment') }}" class="btn btn-primary me-2">Book Appointment</a>
+    <a href="{{ url_for('patient_doctors') }}" class="btn btn-primary">Browse Doctors</a>
+</div>
 
+<!-- Upcoming Appointments -->
+<div class="card shadow card-custom mb-4 p-3">
+    <h4>Upcoming Appointments</h4>
 
-<h3>Upcoming Appointments</h3>
-<ul>
-{% for appt in upcoming_appointments %}
-    <li>
-        {{ appt.date_time }} -
-        Doctor: {{ appt.doctor.name }} -
-        Status: {{ appt.status }}
-        {% if appt.status == 'Booked' %}
-            | <a href="{{ url_for('patient_reschedule_appointment', appointment_id=appt.id) }}">Reschedule</a>
-            | <a href="{{ url_for('patient_cancel_appointment', appointment_id=appt.id) }}">Cancel</a>
-        {% endif %}
-    </li>
-{% else %}
-    <li>No upcoming appointments.</li>
-{% endfor %}
-</ul>
+    <table class="table mt-3 table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Date & Time</th>
+                <th>Doctor</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
 
-<h3>Past Appointments</h3>
-<ul>
-{% for appt in past_appointments %}
-    <li>
-        {{ appt.date_time }} -
-        Doctor: {{ appt.doctor.name }} -
-        Status: {{ appt.status }}
-        {% if appt.treatment %}
-            <br>Diagnosis: {{ appt.treatment.diagnosis }}
-            <br>Prescription: {{ appt.treatment.prescription }}
-        {% endif %}
-    </li>
-{% else %}
-    <li>No past appointments.</li>
-{% endfor %}
-</ul>
+        <tbody>
+            {% for appt in upcoming_appointments %}
+            <tr>
+                <td>{{ appt.date_time }}</td>
+                <td>Dr. {{ appt.doctor.name }}</td>
+                <td>{{ appt.status }}</td>
+                <td>
+                    {% if appt.status == "Booked" %}
+                    <a href="{{ url_for('patient_reschedule_appointment', appointment_id=appt.id) }}" class="btn btn-sm btn-warning me-2">Reschedule</a>
+                    <a href="{{ url_for('patient_cancel_appointment', appointment_id=appt.id) }}" class="btn btn-sm btn-danger">Cancel</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">No upcoming appointments.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Past Appointments -->
+<div class="card shadow card-custom p-3">
+    <h4>Past Appointments</h4>
+
+    <table class="table mt-3 table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Date</th>
+                <th>Doctor</th>
+                <th>Status</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for appt in past_appointments %}
+            <tr>
+                <td>{{ appt.date_time }}</td>
+                <td>Dr. {{ appt.doctor.name }}</td>
+                <td>{{ appt.status }}</td>
+                <td>
+                    {% if appt.treatment %}
+                        Diagnosis: {{ appt.treatment.diagnosis }}<br>
+                        Prescription: {{ appt.treatment.prescription }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">No past appointments.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 {% endblock %}
