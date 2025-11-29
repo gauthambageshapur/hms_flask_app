@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Edit Patient</h2>
+
+<form method="post">
+    <label>Name:</label><br>
+    <input type="text" name="name" value="{{ patient.name }}" required><br><br>
+
+    <label>Email:</label><br>
+    <input type="email" name="email" value="{{ patient.email }}" required><br><br>
+
+    <label>Age:</label><br>
+    <input type="number" name="age" value="{{ patient.age }}"><br><br>
+
+    <label>Gender:</label><br>
+    <input type="text" name="gender" value="{{ patient.gender }}"><br><br>
+
+    <label>Phone:</label><br>
+    <input type="text" name="phone" value="{{ patient.phone }}"><br><br>
+
+    <label>Address:</label><br>
+    <input type="text" name="address" value="{{ patient.address }}"><br><br>
+
+    <button type="submit">Save Changes</button>
+</form>
+{% endblock %}

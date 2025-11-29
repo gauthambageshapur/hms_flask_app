@@ -2,7 +2,13 @@
 {% block content %}
 <h2>Patient Dashboard</h2>
 
-<p><a href="{{ url_for('patient_create_appointment') }}">Book New Appointment</a></p>
+<p>
+    <a href="{{ url_for('patient_profile') }}">Edit Profile</a> |
+    <a href="{{ url_for('patient_create_appointment') }}">Book New Appointment</a> |
+    <a href="{{ url_for('patient_doctors') }}">Browse Doctors & Availability</a>
+</p>
+
+
 
 <h3>Upcoming Appointments</h3>
 <ul>
@@ -12,9 +18,8 @@
         Doctor: {{ appt.doctor.name }} -
         Status: {{ appt.status }}
         {% if appt.status == 'Booked' %}
-            | <a href="{{ url_for('patient_cancel_appointment', appointment_id=appt.id) }}">
-                Cancel
-              </a>
+            | <a href="{{ url_for('patient_reschedule_appointment', appointment_id=appt.id) }}">Reschedule</a>
+            | <a href="{{ url_for('patient_cancel_appointment', appointment_id=appt.id) }}">Cancel</a>
         {% endif %}
     </li>
 {% else %}

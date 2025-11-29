@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>All Appointments</h2>
+
+<form method="get">
+    <label>Status:</label>
+    <select name="status">
+        <option value="">-- Any --</option>
+        <option value="Booked" {% if status == 'Booked' %}selected{% endif %}>Booked</option>
+        <option value="Completed" {% if status == 'Completed' %}selected{% endif %}>Completed</option>
+        <option value="Cancelled" {% if status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+    </select>
+
+    <label>Search (patient/doctor name):</label>
+    <input type="text" name="q" value="{{ q }}">
+
+    <button type="submit">Filter</button>
+    {% if q or status %}
+        <a href="{{ url_for('admin_appointments') }}">Clear</a>
+    {% endif %}
+</form>
+
+<br>
+
+<table border="1" cellpadding="5" cellspacing="0">
+    <tr>
+        <th>ID</th>
+        <th>Date & Time</th>
+        <th>Patient</th>
+        <th>Doctor</th>
+        <th>Status</th>
+    </tr>
+    {% for appt in appointments %}
+    <tr>
+        <td>{{ appt.id }}</td>
+        <td>{{ appt.date_time }}</td>
+        <td>{{ appt.patient.name }}</td>
+        <td>{{ appt.doctor.name }}</td>
+        <td>{{ appt.status }}</td>
+    </tr>
+    {% else %}
+    <tr>
+        <td colspan="5">No appointments found.</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

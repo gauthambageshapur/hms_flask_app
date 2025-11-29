@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Reschedule Appointment #{{ appointment.id }}</h2>
+
+<p>
+    Current: {{ appointment.date_time }} with Dr. {{ appointment.doctor.name }}
+</p>
+
+<form method="post">
+    <label>New Date:</label><br>
+    <input type="date" name="date" required><br><br>
+
+    <label>New Time:</label><br>
+    <input type="time" name="time" required><br><br>
+
+    <button type="submit">Reschedule</button>
+</form>
+{% endblock %}

@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Doctor Dashboard</h2>
-<p><a href="{{ url_for('doctor_appointments') }}">View All Appointments</a></p>
+
+
+<p>
+    <a href="{{ url_for('doctor_appointments') }}">View All Appointments</a> |
+    <a href="{{ url_for('doctor_availability') }}">Manage Availability</a> |
+    <a href="{{ url_for('doctor_patients') }}">My Patients</a>
+</p>
 
 <h3>Upcoming Appointments</h3>
 <ul>

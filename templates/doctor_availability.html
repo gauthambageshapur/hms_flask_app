@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Manage Availability (Next 7 Days)</h2>
+
+<form method="post">
+    <label>Date:</label><br>
+    <input type="date" name="date" required><br><br>
+
+    <label>Start Time:</label><br>
+    <input type="time" name="start_time" required><br><br>
+
+    <label>End Time:</label><br>
+    <input type="time" name="end_time" required><br><br>
+
+    <button type="submit">Add Availability</button>
+</form>
+
+<h3>Your Availability</h3>
+<ul>
+{% for slot in availabilities %}
+    <li>
+        {{ slot.date }}: {{ slot.start_time }} - {{ slot.end_time }}
+        <a href="{{ url_for('doctor_delete_availability', slot_id=slot.id) }}">Delete</a>
+    </li>
+{% else %}
+    <li>No availability slots set for next 7 days.</li>
+{% endfor %}
+</ul>
+{% endblock %}

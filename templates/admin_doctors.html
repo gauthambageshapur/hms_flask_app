@@ -31,11 +31,12 @@
         <td>{{ d.email }}</td>
         <td>{{ d.specialization or '-' }}</td>
         <td>{{ 'Yes' if d.is_active_flag else 'No' }}</td>
-        <td>
-            <a href="{{ url_for('admin_toggle_doctor_active', doctor_id=d.id) }}">
-                {{ 'Deactivate' if d.is_active_flag else 'Activate' }}
-            </a>
-        </td>
+       <td>
+    <a href="{{ url_for('admin_edit_doctor', doctor_id=d.id) }}">Edit</a> |
+    <a href="{{ url_for('admin_toggle_doctor_active', doctor_id=d.id) }}">
+        {{ 'Deactivate' if d.is_active_flag else 'Activate' }}
+    </a>
+</td>
     </tr>
     {% else %}
     <tr>

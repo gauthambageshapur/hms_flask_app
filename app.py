@@ -1,9 +1,5 @@
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import or_
-from collections import Counter
-
-
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -13,8 +9,11 @@ from flask_login import (
     logout_user,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, date, time
+from collections import Counter
+from sqlalchemy import or_
 import os
+
 
 # -----------------------
 # App & DB configuration
@@ -91,6 +90,16 @@ class Treatment(db.Model):
     notes = db.Column(db.Text)
 
     appointment = db.relationship("Appointment", backref="treatment")
+
+class DoctorAvailability(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    doctor_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+
+    doctor = db.relationship("User", backref="availabilities")
+
 
 
 # -------------
@@ -392,6 +401,99 @@ def doctor_complete_appointment(appointment_id):
         treatment=treatment,
     )
 
+from datetime import timedelta  # add this near the imports if not present
+
+
+# -----------------
+# Doctor: Manage Availability
+# -----------------
+
+@app.route("/doctor/availability", methods=["GET", "POST"])
+@login_required
+def doctor_availability():
+    if current_user.role != "doctor":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    # Show availabilities for next 7 days
+    today = date.today()
+    upcoming = (
+        DoctorAvailability.query
+        .filter(
+            DoctorAvailability.doctor_id == current_user.id,
+            DoctorAvailability.date >= today,
+            DoctorAvailability.date <= today + timedelta(days=7),
+        )
+        .order_by(DoctorAvailability.date.asc(), DoctorAvailability.start_time.asc())
+        .all()
+    )
+
+    if request.method == "POST":
+        date_str = request.form.get("date")
+        start_str = request.form.get("start_time")
+        end_str = request.form.get("end_time")
+
+        if not date_str or not start_str or not end_str:
+            flash("Please provide date, start time and end time.", "danger")
+            return render_template("doctor_availability.html", availabilities=upcoming)
+
+        try:
+            d = datetime.strptime(date_str, "%Y-%m-%d").date()
+            start = datetime.strptime(start_str, "%H:%M").time()
+            end = datetime.strptime(end_str, "%H:%M").time()
+        except ValueError:
+            flash("Invalid date or time format.", "danger")
+            return render_template("doctor_availability.html", availabilities=upcoming)
+
+        if end <= start:
+            flash("End time must be after start time.", "danger")
+            return render_template("doctor_availability.html", availabilities=upcoming)
+
+        # Simple overlap check: same doctor, same date, overlapping time range
+        overlap = (
+            DoctorAvailability.query
+            .filter(
+                DoctorAvailability.doctor_id == current_user.id,
+                DoctorAvailability.date == d,
+                DoctorAvailability.start_time < end,
+                DoctorAvailability.end_time > start,
+            )
+            .first()
+        )
+        if overlap:
+            flash("This time range overlaps with an existing availability.", "danger")
+            return render_template("doctor_availability.html", availabilities=upcoming)
+
+        slot = DoctorAvailability(
+            doctor_id=current_user.id,
+            date=d,
+            start_time=start,
+            end_time=end,
+        )
+        db.session.add(slot)
+        db.session.commit()
+        flash("Availability slot added.", "success")
+        return redirect(url_for("doctor_availability"))
+
+    return render_template("doctor_availability.html", availabilities=upcoming)
+
+
+@app.route("/doctor/availability/<int:slot_id>/delete")
+@login_required
+def doctor_delete_availability(slot_id):
+    if current_user.role != "doctor":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    slot = DoctorAvailability.query.filter_by(
+        id=slot_id, doctor_id=current_user.id
+    ).first_or_404()
+    db.session.delete(slot)
+    db.session.commit()
+    flash("Availability slot removed.", "success")
+    return redirect(url_for("doctor_availability"))
+
+
 
 # -----------------
 # Admin: Manage Patients
@@ -436,6 +538,47 @@ def admin_toggle_patient_active(patient_id):
     flash("Patient status updated.", "success")
     return redirect(url_for("admin_patients"))
 
+@app.route("/admin/patients/<int:patient_id>/edit", methods=["GET", "POST"])
+@login_required
+def admin_edit_patient(patient_id):
+    if current_user.role != "admin":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    patient = User.query.filter_by(id=patient_id, role="patient").first_or_404()
+
+    if request.method == "POST":
+        patient.name = request.form.get("name", "").strip()
+        patient.email = request.form.get("email", "").strip()
+        patient.age = request.form.get("age") or None
+        patient.gender = request.form.get("gender", "").strip()
+        patient.phone = request.form.get("phone", "").strip()
+        patient.address = request.form.get("address", "").strip()
+
+        if not patient.name or not patient.email:
+            flash("Name and email are required.", "danger")
+            return render_template("admin_patient_edit.html", patient=patient)
+
+        # email uniqueness
+        existing = User.query.filter_by(email=patient.email).filter(User.id != patient.id).first()
+        if existing:
+            flash("Another user with this email already exists.", "danger")
+            return render_template("admin_patient_edit.html", patient=patient)
+
+        try:
+            if patient.age is not None:
+                patient.age = int(patient.age)
+        except ValueError:
+            flash("Age must be a number.", "danger")
+            return render_template("admin_patient_edit.html", patient=patient)
+
+        db.session.commit()
+        flash("Patient updated successfully.", "success")
+        return redirect(url_for("admin_patients"))
+
+    return render_template("admin_patient_edit.html", patient=patient)
+
+
 
 
 @app.route("/admin/doctors/<int:doctor_id>/toggle_active")
@@ -450,6 +593,77 @@ def admin_toggle_doctor_active(doctor_id):
     db.session.commit()
     flash("Doctor status updated.", "success")
     return redirect(url_for("admin_doctors"))
+
+# -----------------
+# Admin: View All Appointments
+# -----------------
+
+@app.route("/admin/appointments")
+@login_required
+def admin_appointments():
+    if current_user.role != "admin":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    status = request.args.get("status", "").strip()
+    q = request.args.get("q", "").strip()
+
+    query = Appointment.query
+
+    if status:
+        query = query.filter(Appointment.status == status)
+
+    if q:
+        like = f"%{q}%"
+        # filter by patient or doctor name
+        query = query.join(Appointment.patient).join(Appointment.doctor).filter(
+            or_(
+                User.name.ilike(like),   # this will match both patient and doctor names due to joins
+            )
+        )
+
+    appointments = (
+        query.order_by(Appointment.date_time.desc()).all()
+    )
+
+    return render_template(
+        "admin_appointments.html",
+        appointments=appointments,
+        status=status,
+        q=q,
+    )
+
+@app.route("/admin/doctors/<int:doctor_id>/edit", methods=["GET", "POST"])
+@login_required
+def admin_edit_doctor(doctor_id):
+    if current_user.role != "admin":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    doctor = User.query.filter_by(id=doctor_id, role="doctor").first_or_404()
+
+    if request.method == "POST":
+        doctor.name = request.form.get("name", "").strip()
+        doctor.email = request.form.get("email", "").strip()
+        doctor.specialization = request.form.get("specialization", "").strip()
+
+        if not doctor.name or not doctor.email:
+            flash("Name and email are required.", "danger")
+            return render_template("admin_doctor_edit.html", doctor=doctor)
+
+        # email uniqueness
+        existing = User.query.filter_by(email=doctor.email).filter(User.id != doctor.id).first()
+        if existing:
+            flash("Another user with this email already exists.", "danger")
+            return render_template("admin_doctor_edit.html", doctor=doctor)
+
+        db.session.commit()
+        flash("Doctor updated successfully.", "success")
+        return redirect(url_for("admin_doctors"))
+
+    return render_template("admin_doctor_edit.html", doctor=doctor)
+
+
 
 
 @app.route("/doctor/dashboard")
@@ -507,6 +721,144 @@ def patient_dashboard():
         upcoming_appointments=upcoming_appointments,
         past_appointments=past_appointments,
     )
+
+# -----------------
+# Doctor: View Assigned Patients
+# -----------------
+
+@app.route("/doctor/patients")
+@login_required
+def doctor_patients():
+    if current_user.role != "doctor":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    # Distinct patients who have appointments with this doctor
+    patients = (
+        User.query
+        .join(Appointment, Appointment.patient_id == User.id)
+        .filter(
+            Appointment.doctor_id == current_user.id,
+            User.role == "patient",
+        )
+        .distinct()
+        .order_by(User.name.asc())
+        .all()
+    )
+
+    return render_template("doctor_patients.html", patients=patients)
+
+
+# -----------------
+# Patient: Browse Doctors & Availability
+# -----------------
+
+@app.route("/patient/doctors")
+@login_required
+def patient_doctors():
+    if current_user.role != "patient":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    q = request.args.get("q", "").strip()
+    specialization = request.args.get("specialization", "").strip()
+    date_str = request.args.get("date", "").strip()
+
+    doctor_query = User.query.filter_by(role="doctor", is_active_flag=True)
+
+    if q:
+        like = f"%{q}%"
+        doctor_query = doctor_query.filter(
+            or_(
+                User.name.ilike(like),
+                User.email.ilike(like),
+                User.specialization.ilike(like),
+            )
+        )
+
+    if specialization:
+        doctor_query = doctor_query.filter(User.specialization.ilike(f"%{specialization}%"))
+
+    doctors = doctor_query.order_by(User.name.asc()).all()
+
+    selected_date = None
+    availability_map = {}
+
+    if date_str:
+        try:
+            selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            selected_date = None
+
+    if selected_date:
+        # For each doctor, collect that day's availability slots
+        for d in doctors:
+            slots = (
+                DoctorAvailability.query
+                .filter_by(doctor_id=d.id, date=selected_date)
+                .order_by(DoctorAvailability.start_time.asc())
+                .all()
+            )
+            availability_map[d.id] = slots
+
+    # For department/specialization list (simple distinct from doctors)
+    specializations = (
+        db.session.query(User.specialization)
+        .filter(User.role == "doctor", User.specialization.isnot(None))
+        .distinct()
+        .all()
+    )
+    specialization_list = [s[0] for s in specializations if s[0]]
+
+    return render_template(
+        "patient_doctors.html",
+        doctors=doctors,
+        q=q,
+        specialization=specialization,
+        specialization_list=specialization_list,
+        date_str=date_str,
+        availability_map=availability_map,
+        selected_date=selected_date,
+    )
+
+# -----------------
+# Patient: Edit Profile
+# -----------------
+
+@app.route("/patient/profile", methods=["GET", "POST"])
+@login_required
+def patient_profile():
+    if current_user.role != "patient":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    patient = current_user
+
+    if request.method == "POST":
+        patient.name = request.form.get("name", "").strip()
+        patient.age = request.form.get("age") or None
+        patient.gender = request.form.get("gender", "").strip()
+        patient.phone = request.form.get("phone", "").strip()
+        patient.address = request.form.get("address", "").strip()
+
+        if not patient.name:
+            flash("Name is required.", "danger")
+            return render_template("patient_profile.html", patient=patient)
+
+        try:
+            if patient.age is not None:
+                patient.age = int(patient.age)
+        except ValueError:
+            flash("Age must be a number.", "danger")
+            return render_template("patient_profile.html", patient=patient)
+
+        db.session.commit()
+        flash("Profile updated successfully.", "success")
+        return redirect(url_for("patient_dashboard"))
+
+    return render_template("patient_profile.html", patient=patient)
+
+
 
 # -----------------
 # Patient: Book Appointments
@@ -596,6 +948,64 @@ def patient_cancel_appointment(appointment_id):
     db.session.commit()
     flash("Appointment cancelled successfully.", "success")
     return redirect(url_for("patient_dashboard"))
+
+# -----------------
+# Patient: Reschedule Appointment
+# -----------------
+
+@app.route("/patient/appointments/<int:appointment_id>/reschedule", methods=["GET", "POST"])
+@login_required
+def patient_reschedule_appointment(appointment_id):
+    if current_user.role != "patient":
+        flash("Unauthorized access", "danger")
+        return redirect(url_for("index"))
+
+    appt = (
+        Appointment.query
+        .filter_by(id=appointment_id, patient_id=current_user.id)
+        .first_or_404()
+    )
+
+    if appt.status != "Booked":
+        flash("Only booked appointments can be rescheduled.", "warning")
+        return redirect(url_for("patient_dashboard"))
+
+    if request.method == "POST":
+        date_str = request.form.get("date")
+        time_str = request.form.get("time")
+
+        if not date_str or not time_str:
+            flash("Please provide date and time.", "danger")
+            return render_template("patient_reschedule.html", appointment=appt)
+
+        try:
+            dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            flash("Invalid date or time format.", "danger")
+            return render_template("patient_reschedule.html", appointment=appt)
+
+        # Conflict check: other appointment with same doctor & datetime
+        existing = (
+            Appointment.query
+            .filter(
+                Appointment.doctor_id == appt.doctor_id,
+                Appointment.date_time == dt,
+                Appointment.id != appt.id,
+                Appointment.status != "Cancelled",
+            )
+            .first()
+        )
+        if existing:
+            flash("This time slot is already booked for that doctor.", "danger")
+            return render_template("patient_reschedule.html", appointment=appt)
+
+        appt.date_time = dt
+        db.session.commit()
+        flash("Appointment rescheduled successfully.", "success")
+        return redirect(url_for("patient_dashboard"))
+
+    # GET
+    return render_template("patient_reschedule.html", appointment=appt)
 
 
 

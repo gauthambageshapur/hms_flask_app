@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Doctors & Availability</h2>
+
+<form method="get">
+    <label>Search (name/email/specialization):</label>
+    <input type="text" name="q" value="{{ q }}">
+    
+    <label>Specialization:</label>
+    <select name="specialization">
+        <option value="">-- Any --</option>
+        {% for spec in specialization_list %}
+        <option value="{{ spec }}" {% if spec == specialization %}selected{% endif %}>
+            {{ spec }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <label>Date for availability:</label>
+    <input type="date" name="date" value="{{ date_str }}">
+
+    <button type="submit">Filter</button>
+    {% if q or specialization or date_str %}
+        <a href="{{ url_for('patient_doctors') }}">Clear</a>
+    {% endif %}
+</form>
+
+<br>
+
+<ul>
+{% for d in doctors %}
+    <li>
+        <strong>{{ d.name }}</strong> ({{ d.specialization or 'General' }})<br>
+        Email: {{ d.email }}<br>
+        {% if selected_date %}
+            <em>Availability on {{ selected_date }}:</em><br>
+            {% set slots = availability_map.get(d.id, []) %}
+            {% if slots %}
+                {% for s in slots %}
+                    - {{ s.start_time }} to {{ s.end_time }}<br>
+                {% endfor %}
+            {% else %}
+                No availability set for this date.<br>
+            {% endif %}
+        {% else %}
+            <em>Select a date above to see availability.</em><br>
+        {% endif %}
+    </li>
+    <br>
+{% else %}
+    <li>No doctors found.</li>
+{% endfor %}
+</ul>
+{% endblock %}

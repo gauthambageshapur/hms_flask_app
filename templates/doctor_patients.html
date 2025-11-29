@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>My Patients</h2>
+
+<ul>
+{% for p in patients %}
+    <li>
+        {{ p.name }} ({{ p.email }}){% if p.phone %} - {{ p.phone }}{% endif %}
+    </li>
+{% else %}
+    <li>No patients assigned yet.</li>
+{% endfor %}
+</ul>
+{% endblock %}
